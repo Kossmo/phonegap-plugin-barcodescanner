@@ -28,6 +28,8 @@ import com.google.zxing.client.android.CaptureActivity;
 import com.google.zxing.client.android.encode.EncodeActivity;
 import com.google.zxing.client.android.Intents;
 
+import java.sql.Array;
+
 /**
  * This calls out to the ZXing barcode reader and returns the result.
  *
@@ -60,7 +62,9 @@ public class BarcodeScanner extends CordovaPlugin {
 
     private static final String LOG_TAG = "BarcodeScanner";
 
-    private String [] permissions = { Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO };
+    private String permissionsCamera = Manifest.permission.CAMERA;
+    private String permissionsImageAnd13 = Manifest.permission.READ_MEDIA_IMAGES;
+    private String permissionsImageAnd12 = Manifest.permission.READ_EXTERNAL_STORAGE;
 
     private JSONArray requestArgs;
     private CallbackContext callbackContext;
@@ -117,9 +121,9 @@ public class BarcodeScanner extends CordovaPlugin {
 
             //android permission auto add
             if(!hasPermisssion()) {
-              requestPermissions(0);
+                return false;
             } else {
-              scan(args);
+                scan(args);
             }
         } else {
             return false;
@@ -266,16 +270,20 @@ public class BarcodeScanner extends CordovaPlugin {
     /**
      * check application's permissions
      */
-   public boolean hasPermisssion() {
-       for(String p : permissions)
-       {
-           if(!PermissionHelper.hasPermission(this, p))
-           {
-               return false;
-           }
-       }
-       return true;
-   }
+    public boolean hasPermisssion() {
+        if(!PermissionHelper.hasPermission(this, permissionsCamera))
+        {
+            this.requestPermissions(permissionsCamera);
+            return false;
+        }
+        if(!PermissionHelper.hasPermission(this, permissionsImageAnd12) && !PermissionHelper.hasPermission(this, permissionsImageAnd13))
+        {
+            this.requestPermissions(permissionsImageAnd12);
+            this.requestPermissions(permissionsImageAnd13);
+            return false;
+        }
+        return true;
+    }
 
     /**
      * We override this so that we can access the permissions variable, which no longer exists in
@@ -283,38 +291,39 @@ public class BarcodeScanner extends CordovaPlugin {
      *
      * @param requestCode The code to get request action
      */
-   public void requestPermissions(int requestCode)
-   {
-       PermissionHelper.requestPermissions(this, requestCode, permissions);
-   }
+    public void requestPermissions(String permission)
+    {
+        String [] perms = {permission};
+        PermissionHelper.requestPermissions(this, 0, perms);
+    }
 
-   /**
-   * processes the result of permission request
-   *
-   * @param requestCode The code to get request action
-   * @param permissions The collection of permissions
-   * @param grantResults The result of grant
-   */
-  public void onRequestPermissionResult(int requestCode, String[] permissions,
-                                         int[] grantResults) throws JSONException
-   {
-       PluginResult result;
-       for (int r : grantResults) {
-           if (r == PackageManager.PERMISSION_DENIED) {
-               Log.d(LOG_TAG, "Permission Denied!");
-               result = new PluginResult(PluginResult.Status.ILLEGAL_ACCESS_EXCEPTION);
-               this.callbackContext.sendPluginResult(result);
-               return;
-           }
-       }
+    /**
+     * processes the result of permission request
+     *
+     * @param requestCode The code to get request action
+     * @param permissions The collection of permissions
+     * @param grantResults The result of grant
+     */
+    public void onRequestPermissionResult(int requestCode, String[] permissions,
+                                          int[] grantResults) throws JSONException
+    {
+        PluginResult result;
+        for (int r : grantResults) {
+            if (r == PackageManager.PERMISSION_DENIED) {
+                Log.d(LOG_TAG, "Permission Denied!");
+                result = new PluginResult(PluginResult.Status.ILLEGAL_ACCESS_EXCEPTION);
+                this.callbackContext.sendPluginResult(result);
+                return;
+            }
+        }
 
-       switch(requestCode)
-       {
-           case 0:
-               scan(this.requestArgs);
-               break;
-       }
-   }
+        switch(requestCode)
+        {
+            case 0:
+                scan(this.requestArgs);
+                break;
+        }
+    }
 
     /**
      * This plugin launches an external Activity when the camera is opened, so we
